@@ -31,11 +31,11 @@ class DualRealSenseCamera:
         
         # Enable streams for exterior camera (first device)
         self.exterior_config.enable_device(devices[0].get_info(rs.camera_info.serial_number))
-        self.exterior_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        self.exterior_config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
         
         # Enable streams for wrist camera (second device)
         self.wrist_config.enable_device(devices[1].get_info(rs.camera_info.serial_number))
-        self.wrist_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        self.wrist_config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
         
         # Start streaming from both cameras
         print("Starting exterior camera...")
@@ -77,12 +77,10 @@ class DualRealSenseCamera:
             # wrist_image = cv2.flip(wrist_image, -1)
             
             # Process images (resize with padding and convert to uint8)
-            exterior_processed = image_tools.convert_to_uint8(
-                image_tools.resize_with_pad(exterior_image, 224, 224)
-            )
-            wrist_processed = image_tools.convert_to_uint8(
-                image_tools.resize_with_pad(wrist_image, 224, 224)
-            )
+            exterior_processed = image_tools.resize_with_pad(exterior_image, 224, 224)
+            
+            wrist_processed = image_tools.resize_with_pad(wrist_image, 224, 224)
+            
             
             # Build an observation dictionary that includes images and robot state.
             observation = {
@@ -121,7 +119,7 @@ class DualRealSenseCamera:
 # Main Robot Control Class using XArm API and Camera Input
 # =============================================================================
 class CameraJointControl:
-    def __init__(self, arm_ip='192.168.1.242', open_loop_horizon=10):
+    def __init__(self, arm_ip='192.168.1.242', open_loop_horizon=8):
         print("Starting Camera Joint Control script...")
         self.open_loop_horizon = open_loop_horizon
 
@@ -135,7 +133,7 @@ class CameraJointControl:
         self.arm.set_gripper_mode(0)
         self.arm.set_gripper_enable(True)
         self.arm.set_gripper_speed(500)
-        self.arm.set_mode(4)   # Position control mode
+        self.arm.set_mode(4)   # Velocity control mode
         self.arm.set_state(state=0)  # Ready state
         time.sleep(0.5)
         
@@ -230,6 +228,7 @@ class CameraJointControl:
         #     print("Error sending gripper command."
 
     def move_to_default_position(self):
+        # self.arm.set_mode(0) 
         """Move the arm to a predefined home position."""
         print("Moving to default (home) position...")
         home_angles_deg = [0.3, -8.3, 8, 24.8, -24.7, -12.9, 0] 
@@ -241,6 +240,7 @@ class CameraJointControl:
         self.set_gripper_position(gripper_open)
         time.sleep(5)
         print("Arrived at default position.")
+        # self.arm.set_mode(4) 
 
     # ------------------ Helper Functions (Transforms etc.) ------------------
     def get_transformation_matrix(self, a, d, alpha, theta):
@@ -332,7 +332,7 @@ class CameraJointControl:
         if isinstance(action_step, list):
             action_step = np.array(action_step)
         
-        scale_factor = 1.0  # Adjust scaling as needed
+        scale_factor = 0.2  # Adjust scaling as needed
         joint_velocities = scale_factor * action_step[:7]
         self.check_velocity_limit(action_step[:7])
         # Process gripper command (last value)
@@ -457,7 +457,7 @@ class CameraJointControl:
 # =============================================================================
 if __name__ == '__main__':
     try:
-        controller = CameraJointControl(arm_ip='192.168.1.242', open_loop_horizon=10)
+        controller = CameraJointControl(arm_ip='192.168.1.242', open_loop_horizon=8)
         controller.control_loop()
     except KeyboardInterrupt:
         print("Exiting on user interrupt.")

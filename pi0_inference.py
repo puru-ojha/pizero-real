@@ -31,11 +31,11 @@ class DualRealSenseCamera:
         
         # Enable streams for exterior camera (first device)
         self.exterior_config.enable_device(devices[0].get_info(rs.camera_info.serial_number))
-        self.exterior_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        self.exterior_config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
         
         # Enable streams for wrist camera (second device)
         self.wrist_config.enable_device(devices[1].get_info(rs.camera_info.serial_number))
-        self.wrist_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        self.wrist_config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
         
         # Start streaming from both cameras
         print("Starting exterior camera...")
@@ -77,12 +77,10 @@ class DualRealSenseCamera:
             # wrist_image = cv2.flip(wrist_image, -1)
             
             # Process images (resize with padding and convert to uint8)
-            exterior_processed = image_tools.convert_to_uint8(
-                image_tools.resize_with_pad(exterior_image, 224, 224)
-            )
-            wrist_processed = image_tools.convert_to_uint8(
-                image_tools.resize_with_pad(wrist_image, 224, 224)
-            )
+            exterior_processed = image_tools.resize_with_pad(exterior_image, 224, 224)
+            
+            wrist_processed =  image_tools.resize_with_pad(wrist_image, 224, 224)
+            
             
             # Build an observation dictionary that includes images and robot state.
             observation = {
@@ -105,10 +103,16 @@ class DualRealSenseCamera:
 
     def debug_visualization(self, original_exterior, original_wrist, processed_exterior, processed_wrist):
         """Show debug windows for original and processed images."""
-        cv2.imshow('Original Exterior Camera', original_exterior)
-        cv2.imshow('Original Wrist Camera', original_wrist)
-        cv2.imshow('Processed Exterior Image (224x224)', processed_exterior)
-        cv2.imshow('Processed Wrist Image (224x224)', processed_wrist)
+        processed_exterior_bgr = cv2.cvtColor(processed_exterior, cv2.COLOR_RGB2BGR)
+        processed_wrist_bgr = cv2.cvtColor(processed_wrist, cv2.COLOR_RGB2BGR)
+        original_exterior_bgr = cv2.cvtColor(original_exterior, cv2.COLOR_RGB2BGR)
+        original_wrist_bgr = cv2.cvtColor(original_wrist, cv2.COLOR_RGB2BGR)
+        
+
+        # cv2.imshow('Original Exterior Camera', original_exterior_bgr)
+        # cv2.imshow('Original Wrist Camera', original_wrist_bgr)
+        cv2.imshow('Processed Exterior Image (224x224)', processed_exterior_bgr)
+        cv2.imshow('Processed Wrist Image (224x224)', processed_wrist_bgr)
         cv2.waitKey(1)
 
     def release(self):
@@ -318,7 +322,7 @@ class CameraJointControl:
             action_step = np.array(action_step)
         dt = 1 / 15.0  # Time step in seconds.
         current_angles = self.get_servo_angles()  # Current joint angles (degrees)
-        scale_factor = 1.0  # Adjust scaling as needed
+        scale_factor = 0.2  # Adjust scaling as needed
         # Integrate velocities to compute target angles.
         target_angles = current_angles + scale_factor * action_step[:7] * dt
         print(f"The difference between target and current is {target_angles - current_angles}")
